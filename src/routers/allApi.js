@@ -1,7 +1,8 @@
 const express = require('express');
 const router = new express.Router();
 const Empley = require('../models/employee');
-const bcrypt = require('bcrypt');
+const auth = require('../middleware/auth');
+
 
 
 // New employee Create and send data in database
@@ -10,7 +11,8 @@ router.post('/employee', async(req, res) => {
     try{
         const newUser = new Empley(req.body)
         const createUser = await newUser.save()
-        res.status(201).send(createUser)
+        const token = await newUser.generateAuthToken()
+        res.status(201).send({ createUser, token })
     }catch(error)
         { res.status(400).send(error);}
 })
@@ -33,7 +35,7 @@ router.get('/employeeone/:id', async(req, res) => {
         const oneEnp = await Empley.findById(_id)
 
        if(!oneEnp){
-            return res.send()              
+            return res.status(404).send()              
         }else{
             res.send(oneEnp)
         } 
@@ -72,37 +74,29 @@ router.delete('/employeedel/:id', async(req,res) => {
 //Login Employees
 router.post('/login' ,async(req, res) => {
 
-    try {
-        const {email, password } = req.body;
-        
-        if (!email || !password) {
-            return res.status(400).json(error)
-        }
+    try { 
+        const user = await Empley.findByCredentials(req.body.email, req.body.password)
+        const token = await user.generateAuthToken()
+        res.send({ user , token })
 
-        const userLogin = await Empley.findOne({email: email });
-        
+    } catch (error) {
 
-        if(userLogin) {
-            const isMatch = await bcrypt.compare(password, userLogin.password);
-
-            if(!isMatch) {
-                res.status(400).json(error);
-                
-            } else {
-                res.status(400).json(userLogin);
-            }
-            } else {
-                    res.status(400).json(error)
-                }
-
-            }catch(error) {
-                console.log(error);
-            }
-
+        res.status(400).send()
+    }
         
     });
 
 
+//Logout Employees
 
+router.post('/logout',auth, async(req, res) => {
+   try {
+    res.clearCookie('jwt')
+    console.log('logout Successfully')
+
+   } catch (error) {
+        res.status(500).send(error)    
+   }
+})
 
 module.exports = router;

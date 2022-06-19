@@ -2,6 +2,7 @@
 const mongoose = require('mongoose');
 const validator = require('validate');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 
 const employee = new mongoose.Schema({
@@ -33,10 +34,43 @@ const employee = new mongoose.Schema({
             password: {
                 type:String,
                 required:true
-            }
+            },
+            tokens: [{
+                token: {
+                    type: String,
+                    required: true
+                }
+            }]
 })
 
+//Generating tokens
+employee.methods.generateAuthToken = async function () {
+    const user = this
+    const token = jwt.sign({_id:user.id.toString()}, 'hiiamranjanmajiiambackenddev')
 
+    user.tokens = user.tokens.concat({ token })
+    await user.save()
+    return token
+}
+
+
+//Login Function with bcrypt form
+employee.statics.findByCredentials = async (email, password) => {
+    const user = await Empley.findOne({ email })
+    if (!user) {
+        throw new Error('Unable to login')
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password)
+
+    if (!isMatch) {
+        throw new Error('Unable to login')
+    }
+
+    return user
+}
+
+//convert password into Hash Method
 employee.pre('save', async function(next) {
 
    if(this.isModified("password")){
